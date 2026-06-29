@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   Image,
   ImageBackground,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -45,6 +46,20 @@ export default function Index() {
   const [selectedLocation, setSelectedLocation] =
     useState<weatherLocation | null>(null);
   const [forecasts, setForecasts] = useState<Forecast[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (selectedLocation?.name) {
+        await handleSearch(selectedLocation.name);
+      } else {
+        await fetchMyWeatherData();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const dailyForecasts = forecasts.filter((item, index) => index % 8 === 0);
 
@@ -217,123 +232,135 @@ export default function Index() {
           </View>
 
           {/* Forecast Section  */}
-          <View className="mx-4 flex justify-around flex-1 mb-2">
-            {/* location */}
-            <Text className="text-white text-center text-2xl font-bold">
-              {selectedLocation?.name ?? "London"},
-              <Text className="text-lg font-semibold text-gray-200">
-                {selectedLocation?.country ?? "United Kingdom"}
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ flexGrow: 1 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            <View className="mx-4 flex justify-around flex-1 mb-2">
+              {/* location */}
+              <Text className="text-white text-center text-2xl font-bold">
+                {selectedLocation?.name ?? "London"},
+                <Text className="text-lg font-semibold text-gray-200">
+                  {selectedLocation?.country ?? "United Kingdom"}
+                </Text>
               </Text>
-            </Text>
 
-            {/* Weather Image */}
-            <View className="flex-row justify-center">
-              <Image
-                source={
-                  weatherImages[
-                    (selectedLocation?.weatherImage as keyof typeof weatherImages) ??
-                      "clear"
-                  ]
-                }
-                className="w-44 h-44"
-              />
-            </View>
-
-            {/* Degree celsius */}
-            <View>
-              <Text className="text-center font-bold text-white text-7xl ml-5">
-                {Math.floor(selectedLocation?.temp ?? 23)}&#176;
-              </Text>
-              <Text className="text-center text-white text-xl font-semibold tracking-widest">
-                {selectedLocation?.description.toUpperCase() ?? "Partly Cloud"}
-              </Text>
-            </View>
-
-            {/* Other stats */}
-            <View className="flex-row justify-between mx-4">
-              <View className="flex-row space-x-2 items-center">
+              {/* Weather Image */}
+              <View className="flex-row justify-center">
                 <Image
-                  source={require("../../assets/icons/wind.png")}
-                  className="w-6 h-6"
+                  source={
+                    weatherImages[
+                      (selectedLocation?.weatherImage as keyof typeof weatherImages) ??
+                        "clear"
+                    ]
+                  }
+                  className="w-44 h-44"
                 />
-                <Text className="text-white font-semibold text-base ml-2">
-                  {Math.floor((selectedLocation?.wind ?? 12) * 3.6)}Km
+              </View>
+
+              {/* Degree celsius */}
+              <View>
+                <Text className="text-center font-bold text-white text-7xl ml-5">
+                  {Math.floor(selectedLocation?.temp ?? 23)}&#176;
+                </Text>
+                <Text className="text-center text-white text-xl font-semibold tracking-widest">
+                  {selectedLocation?.description.toUpperCase() ??
+                    "Partly Cloud"}
                 </Text>
               </View>
-              <View className="flex-row space-x-2 items-center">
-                <Image
-                  source={require("../../assets/icons/drop.png")}
-                  className="w-6 h-6"
-                />
-                <Text className="text-white font-semibold text-base ml-2">
-                  {selectedLocation?.humidity ?? "50"}%
-                </Text>
+
+              {/* Other stats */}
+              <View className="flex-row justify-between mx-4">
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/wind.png")}
+                    className="w-6 h-6"
+                  />
+                  <Text className="text-white font-semibold text-base ml-2">
+                    {Math.floor((selectedLocation?.wind ?? 12) * 3.6)}Km
+                  </Text>
+                </View>
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/drop.png")}
+                    className="w-6 h-6"
+                  />
+                  <Text className="text-white font-semibold text-base ml-2">
+                    {selectedLocation?.humidity ?? "50"}%
+                  </Text>
+                </View>
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/sun.png")}
+                    className="w-6 h-6"
+                  />
+                  <Text className="text-white font-semibold text-base ml-2">
+                    {new Date(
+                      (selectedLocation?.sunrise ?? 0) * 1000,
+                    ).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}{" "}
+                  </Text>
+                </View>
               </View>
-              <View className="flex-row space-x-2 items-center">
-                <Image
-                  source={require("../../assets/icons/sun.png")}
-                  className="w-6 h-6"
-                />
-                <Text className="text-white font-semibold text-base ml-2">
-                  {new Date(
-                    (selectedLocation?.sunrise ?? 0) * 1000,
-                  ).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}{" "}
-                </Text>
+
+              {/* upcoming forecaasts */}
+              <View className="mb-2 space-y-3">
+                <View className="flex-row items-center mx-5 my-4 space-x-2">
+                  <Ionicons
+                    name="calendar"
+                    style={{ color: "white", fontSize: 20 }}
+                  />
+                  <Text className="text-white text-base ml-2">
+                    Daily Forecast
+                  </Text>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  contentContainerStyle={{ paddingHorizontal: 15 }}
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {dailyForecasts.map((item) => {
+                    return (
+                      <View
+                        key={item.dt}
+                        style={{ backgroundColor: theme.bgWhite(0.15) }}
+                        className="flex justify-center items-center w-24 rounded-3xl py-2 space-y-1 mr-4"
+                      >
+                        <Image
+                          className="w-10 h-10"
+                          source={
+                            weatherImages[
+                              item.weather?.[0]?.main?.toLowerCase() as keyof typeof weatherImages
+                            ] ?? weatherImages.clouds
+                          }
+                        />
+
+                        <Text className="text-gray-100">
+                          {new Date(item.dt * 1000).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "short",
+                            },
+                          )}
+                        </Text>
+
+                        <Text className="text-white">
+                          {Math.floor(item.main.temp)}&#176;
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
               </View>
             </View>
-
-            {/* upcoming forecaasts */}
-            <View className="mb-2 space-y-3">
-              <View className="flex-row items-center mx-5 my-4 space-x-2">
-                <Ionicons
-                  name="calendar"
-                  style={{ color: "white", fontSize: 20 }}
-                />
-                <Text className="text-white text-base ml-2">
-                  Daily Forecast
-                </Text>
-              </View>
-
-              <ScrollView
-                horizontal
-                contentContainerStyle={{ paddingHorizontal: 15 }}
-                showsHorizontalScrollIndicator={false}
-              >
-                {dailyForecasts.map((item) => {
-                  return (
-                    <View
-                      key={item.dt}
-                      style={{ backgroundColor: theme.bgWhite(0.15) }}
-                      className="flex justify-center items-center w-24 rounded-3xl py-2 space-y-1 mr-4"
-                    >
-                      <Image
-                        className="w-10 h-10"
-                        source={
-                          weatherImages[
-                            item.weather?.[0]?.main?.toLowerCase() as keyof typeof weatherImages
-                          ] ?? weatherImages.clouds
-                        }
-                      />
-
-                      <Text className="text-gray-100">
-                        {new Date(item.dt * 1000).toLocaleDateString("en-US", {
-                          weekday: "short",
-                        })}
-                      </Text>
-
-                      <Text className="text-white">
-                        {Math.floor(item.main.temp)}&#176;
-                      </Text>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </ImageBackground>
     </View>
